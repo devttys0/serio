@@ -16,7 +16,7 @@ class SerialFTP:
         if time is not None:
             self.IO_TIME = time
         self.s = serial.Serial(port=port, baudrate=baudrate)
-        self.s.open()
+        #self.s.open()
 
     def put(self, source, destination):
         data = open(source).read()
