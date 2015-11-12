@@ -56,16 +56,35 @@ class SerialFTP:
         self.s.close()
 
 
+class TelnetFTP(SerialFTP):
 
+    def __init__(self, host, port, login=None, passwd=None, time=None, quiet=None):
+        self.quiet = quiet
+        if time is not None:
+            self.IO_TIME = time
+        self.s = telnetlib.Telnet(host, port, timeout=10)
+        # We're not interested in matching input, just interested
+        # in consuming it, until it stops
+        DONT_MATCH = "\xff\xff\xff"
+        if login:
+            print(self.s.read_until(DONT_MATCH, 0.5))
+            self.s.write(login + "\n")
+            print(self.s.read_until(DONT_MATCH, 0.5))
+            self.s.write(passwd + "\n")
+        # Skip shell banner
+        print(self.s.read_until(DONT_MATCH, self.IO_TIME))
 
 
 def usage():
     print '\nUsage: %s [OPTIONS]\n' % sys.argv[0]
     print '\t-s, --source=<local file>              Path to local file'
     print '\t-d, --destination=<remote file>        Path to remote file'
-    print '\t-p, --port=<serial port>               Serial port to use [/dev/ttyUSB0]'
+    print '\t    --telnet=<host>                    Upload via telnet instead of serial'
+    print '\t-p, --port=<port>                      Serial port to use [/dev/ttyUSB0] or telnet port [23]'
     print '\t-b, --baudrate=<baud>                  Serial port baud rate [115200]'
     print '\t-t, --time=<seconds>                   Time to wait between echo commands [0.1]'
+    print '\t    --login=<username>                 Login name for telnet'
+    print '\t    --pass=<passwd>                    Password for telnet'
     print '\t-q, --quiet                            Supress status messages'
     print '\t-h, --help                             Show help'
     print ''
@@ -73,21 +92,31 @@ def usage():
 
 def main():
 
-    port = '/dev/ttyUSB0'
+    host = None
+    port = None
     baudrate = 115200
+    login = None
+    passwd = None
     source = None
     destination = None
     time = None
     quiet = False
 
     try:
-        opts, args = GetOpt(sys.argv[1:],'p:b:s:d:t:qh', ['port=', 'baudrate=', 'source=', 'destination=', 'time=', 'quiet', 'help'])
+        opts, args = GetOpt(sys.argv[1:],'p:b:s:d:t:qh', ['port=', 'baudrate=',
+            'source=', 'destination=', 'time=', 'quiet', 'help', 'telnet=', 'login=', 'pass='])
     except GetoptError, e:
         print 'Usage error:', e
         usage()
 
     for opt, arg in opts:
-        if opt in ('-p', '--port'):
+        if opt in ('--telnet',):
+            host = arg
+        elif opt in ('--login',):
+            login = arg
+        elif opt in ('--pass',):
+            passwd = arg
+        elif opt in ('-p', '--port'):
             port = arg
         elif opt in ('-b', '--baudrate'):
             baudrate = arg
@@ -96,7 +125,7 @@ def main():
         elif opt in ('-d', '--destination'):
             destination = arg
         elif opt in ('-t', '--time'):
-            time = arg
+            time = float(arg)
         elif opt in ('-q', '--quiet'):
             quiet = True
         elif opt in ('-h', '--help'):
@@ -107,7 +136,17 @@ def main():
         usage()
 
     try:
-        sftp = SerialFTP(port=port, baudrate=baudrate, time=time, quiet=quiet)
+        if host:
+            global telnetlib
+            import telnetlib
+            if not port:
+                port = 23
+            print(host, port, time, quiet)
+            sftp = TelnetFTP(host=host, port=port, login=login, passwd=passwd, time=time, quiet=quiet)
+        else:
+            if not port:
+                port = '/dev/ttyUSB0'
+            sftp = SerialFTP(port=port, baudrate=baudrate, time=time, quiet=quiet)
         size = sftp.put(source, destination)
         sftp.close()
 
