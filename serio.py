@@ -2,7 +2,6 @@
 # Small utility to upload a file to an embedded Linux system that provides a shell
 # via its serial port.
 
-import serial
 import sys, time
 from getopt import GetoptError, getopt as GetOpt
 
@@ -144,6 +143,8 @@ def main():
             print(host, port, time, quiet)
             sftp = TelnetFTP(host=host, port=port, login=login, passwd=passwd, time=time, quiet=quiet)
         else:
+            global serial
+            import serial
             if not port:
                 port = '/dev/ttyUSB0'
             sftp = SerialFTP(port=port, baudrate=baudrate, time=time, quiet=quiet)
