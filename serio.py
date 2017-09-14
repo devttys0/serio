@@ -19,7 +19,7 @@ class SerialFTP:
         #self.s.open()
 
     def put(self, source, destination):
-        data = open(source).read()
+        data = open(source, 'rb').read()
         data_size = len(data)
         i = 0
         j = 0
